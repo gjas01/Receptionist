@@ -157,21 +157,29 @@ async function submitClone(blob, filename, mime, onFail) {
     const response = await fetch("/api/voice/clone", { method: "POST", body });
     const data = await parseJson(response);
     if (!response.ok) throw new Error(data.error || "Cloning failed.");
-    setStatus(`Voice cloned${data.voice && data.voice.name ? ` as “${data.voice.name}”` : ""}.`);
+    const named = data.voice && data.voice.name ? ` as “${data.voice.name}”` : "";
+    setStatus(`Voice cloned${named}.`);
     if (window.refreshVoices) window.refreshVoices();
-    await playPreview(data.preview_phrase);
+    // Audition the voice just created, not whoever the schedule would pick.
+    await playPreview(data.preview_phrase, data.voice_id, data.voice && data.voice.delivery);
   } catch (err) {
     setStatus(err.message);
     restore();
   }
 }
 
-async function playPreview(phrase) {
+async function playPreview(phrase, voice, delivery) {
   previewEl.textContent = `Playing: “${phrase}”`;
   const player = new PcmPlayer(24000);
   await player.ensure();
   const protocol = location.protocol === "https:" ? "wss" : "ws";
-  const socket = new WebSocket(`${protocol}://${location.host}/ws/voice-preview`);
+  const params = new URLSearchParams();
+  if (voice) params.set("voice", voice);
+  if (delivery) params.set("delivery", delivery);
+  const query = params.toString();
+  const socket = new WebSocket(
+    `${protocol}://${location.host}/ws/voice-preview${query ? `?${query}` : ""}`
+  );
   socket.onmessage = (event) => {
     const message = JSON.parse(event.data);
     if (message.type === "audio") {
@@ -182,7 +190,7 @@ async function playPreview(phrase) {
       previewEl.textContent = message.message;
       recordBtn.disabled = false;
     } else if (message.type === "done") {
-      previewEl.textContent = "Playback finished. This is the voice callers will hear.";
+      previewEl.textContent = "Playback finished — that is the voice you just cloned.";
       recordBtn.disabled = false;
     }
   };
