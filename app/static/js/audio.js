@@ -145,6 +145,15 @@ class PcmPlayer {
       this.primed = false;
     }
   }
+
+  // Close the context only once everything already enqueued has finished
+  // playing. Streaming arrives faster than real time, so stopping on the
+  // "done" event would cut the tail off the preview.
+  stopWhenFinished() {
+    if (!this.ctx) return;
+    const remainingSec = Math.max(0, this.nextTime - this.ctx.currentTime);
+    setTimeout(() => this.stop(), (remainingSec + 0.15) * 1000);
+  }
 }
 
 class MicCapture {

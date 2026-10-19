@@ -126,11 +126,14 @@ function auditionVoice(voice) {
     const params = new URLSearchParams({ voice: voice.voice_id });
     if (voice.delivery) params.set("delivery", voice.delivery);
     const socket = new WebSocket(`${protocol}://${location.host}/ws/voice-preview?${params.toString()}`);
+    let closed = false;
     const finish = (message) => {
+      if (closed) return;
+      closed = true;
       voicesStatus.textContent = message;
       window.__auditioning = false;
       try { socket.close(); } catch (e) { /* ignore */ }
-      player.stop();
+      player.stopWhenFinished();
     };
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
