@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Front Desk{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">Telephone reception, without the front desk</p>
+    <h1>Answer the phone in your own voice.</h1>
+    <p class="lead">Register, clone a voice with Qwen, then test a call on this computer. Twilio is the carrier; the conversation runs on our voice model.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="/register">Create an account</a>
+      <a class="btn btn-ghost" href="/login">Log in</a>
+    </div>
+  </div>
+  <aside class="hero-card">
+    <p class="eyebrow">This sprint</p>
+    <h2>Ready for a local Docker test</h2>
+    <p>Clone a 30-second voice sample, then simulate an incoming call through your headphones. Live Twilio webhooks wait until the app is on Lightsail with a public URL.</p>
+  </aside>
+</section>
+{% endblock %}

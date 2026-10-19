@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Voices &amp; Schedule · Front Desk{% endblock %}
+{% block content %}
+<section class="card" id="voices-card">
+  <p class="eyebrow">{{ provider | capitalize }} · {{ qwen_model }}</p>
+  <h1>Your voices</h1>
+
+  {% if unnamed_voices %}
+    <div class="flash info">
+      {{ unnamed_voices | length }} stored voice{% if unnamed_voices | length > 1 %}s{% else %} is{% endif %}
+      still unnamed. Give {% if unnamed_voices | length > 1 %}them{% else %}it{% endif %} a name so you can pick
+      it in the schedule below.
+    </div>
+  {% endif %}
+
+  <p class="hint" id="answering-now">
+    Answering now: <strong>{{ current_voice_name or ("default preset (" ~ qwen_voice ~ ")") }}</strong>
+    — {{ current_reason }} at {{ now_line }}.
+  </p>
+
+  <table class="list" id="voices-table">
+    <thead>
+      <tr><th>Name</th><th>Voice</th><th>Model</th><th></th></tr>
+    </thead>
+    <tbody id="voices-body"></tbody>
+  </table>
+  <p class="hint" id="voices-empty" {% if voices %}hidden{% endif %}>No voices stored yet — add one below.</p>
+  <p class="status" id="voices-status"></p>
+</section>
+
+<section class="card" style="margin-top:1.4rem">
+  <h1>{% if provider == "gemini" %}Add a preset voice{% else %}Add a cloned voice{% endif %}</h1>
+
+  {% if not qwen_configured %}
+    <div class="flash error">
+      {% if provider == "gemini" %}
+        Set <code>GEMINI_API_KEY</code> in <code>.env</code> before adding voices.
+      {% else %}
+        Set <code>API_ENDPOINT</code> and <code>DASHSCOPE_KEY</code> in <code>.env</code> before cloning.
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if provider == "gemini" %}
+    <p class="lead">Gemini Live speaks with one of 30 built-in voices. Preview one, name it, and add it to your list.</p>
+
+    <label for="gemini-voice">Built-in voice</label>
+    <select id="gemini-voice">
+      {% for v in gemini_voices %}
+        <option value="{{ v.name }}" {% if v.name == qwen_voice %}selected{% endif %}>{{ v.name }} — {{ v.trait }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="preset-name">Name this voice <span class="hint">(e.g. “Sulafat Morning”)</span></label>
+    <input id="preset-name" maxlength="80" placeholder="A label you will recognise in the schedule">
+
+    <label for="voice-shaping">Shaping prompt <span class="hint">(how the voice should speak — accent, age, pace, tone)</span></label>
+    <textarea id="voice-shaping" rows="3" maxlength="1000" placeholder="e.g. Speak as a warm, unhurried 22 year old British receptionist from Edinburgh; keep sentences short and calm">{{ voice_delivery }}</textarea>
+
+    <div class="actions" style="margin-top:0.9rem">
+      <button class="btn btn-primary" id="audition-btn" type="button" {% if not qwen_configured %}disabled{% endif %}>Preview this voice</button>
+      <button class="btn btn-ghost" id="save-voice-btn" type="button" {% if not qwen_configured %}disabled{% endif %}>Add this voice</button>
+    </div>
+    <p class="status" id="preview-status"></p>
+    <p class="status" id="status"></p>
+  {% else %}
+    <p class="lead">Either record about 30 seconds reading the script below, or upload a pre-existing recording (WAV, MP3 or M4A, 20–60 seconds). Name the clone, and the playback greeting will play through this machine’s speakers.</p>
+
+    <label for="clone-name">Name this voice <span class="hint">(e.g. “Jordan Studio”)</span></label>
+    <input id="clone-name" maxlength="80" placeholder="A label you will recognise in the schedule">
+
+    <label for="full_name">Your name <span class="hint">(used in the playback greeting only)</span></label>
+    <input id="full_name" name="full_name" value="{{ user.full_name or '' }}" maxlength="80">
+
+    <div class="tabs" role="tablist">
+      <button class="tab-btn" id="tab-record" role="tab" aria-selected="true" type="button">Record with microphone</button>
+      <button class="tab-btn" id="tab-upload" role="tab" aria-selected="false" type="button">Upload a recording</button>
+    </div>
+
+    <div id="panel-record">
+      <h2>Recording tips</h2>
+      <ul>
+        <li>Use a small, quiet room. Turn off fans and close windows.</li>
+        <li>Keep the microphone about 10 cm from your mouth.</li>
+        <li>Speak at a natural pace. Avoid singing, background music, or other voices.</li>
+      </ul>
+
+      <h2>Script <span class="hint">(about 30 seconds)</span></h2>
+      <p class="script" id="clone-script">
+        Hello, thank you for calling. I’m delighted to help you today. Please confirm your name, your number, and whether you prefer Tuesday at three or Thursday at nine. That’s wonderful. I’ll take a message, book the appointment, and make sure someone returns your call promptly. The address is twenty-seven Castle Street, beside the river. Feel free to ask about opening hours, prices, or directions. Thank you very much, and have a pleasant day.
+      </p>
+
+      <p class="timer" id="timer">0:00 / 0:30</p>
+      <div class="meter"><span id="level"></span></div>
+      <div class="actions">
+        <button class="btn btn-primary" id="record-btn" type="button" {% if not qwen_configured %}disabled{% endif %}>Start recording</button>
+        <button class="btn btn-ghost" id="stop-btn" type="button" disabled>Stop</button>
+      </div>
+    </div>
+
+    <div id="panel-upload" hidden>
+      <h2>Upload a recording <span class="hint">(WAV, MP3 or M4A · 20–60 seconds of clear speech)</span></h2>
+      <p class="hint">Ideal: you introducing yourself and reading a few varied sentences, with no music or other voices. You can preview it below before cloning.</p>
+      <input type="file" id="upload-input" accept=".wav,.mp3,.m4a,audio/wav,audio/x-wav,audio/mpeg,audio/mp3,audio/mp4,audio/m4a">
+      <audio id="upload-preview" controls hidden style="width:100%;margin-top:0.8rem"></audio>
+      <p class="hint" id="upload-info"></p>
+      <div class="actions">
+        <button class="btn btn-primary" id="upload-clone-btn" type="button" disabled data-locked="{% if not qwen_configured %}1{% else %}0{% endif %}">Clone from this recording</button>
+      </div>
+    </div>
+
+    <p class="status" id="status">Ready when you are.</p>
+    <p class="status" id="preview-status"></p>
+  {% endif %}
+</section>
+
+<section class="card" style="margin-top:1.4rem" id="schedule-card">
+  <h1>Answering schedule</h1>
+  <p class="lead">Choose which voice answers during particular hours. Any time not covered by a slot falls back to a
+    random voice from your list. Slots must not overlap.</p>
+
+  <table class="list" id="slots-table">
+    <thead>
+      <tr><th>Day</th><th>From</th><th>To</th><th>Voice</th><th></th></tr>
+    </thead>
+    <tbody id="slots-body"></tbody>
+  </table>
+  <p class="hint" id="slots-empty" {% if voices %}hidden{% endif %}>No time slots yet — every hour is random.</p>
+
+  <h2 style="margin-top:1.2rem">Add a time slot</h2>
+  <div class="grid-4">
+    <div>
+      <label for="slot-day">Day</label>
+      <select id="slot-day">
+        <option value="">All days</option>
+        {% for d in day_names %}
+          <option value="{{ loop.index0 }}">{{ d }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="slot-start">Start</label>
+      <input type="time" id="slot-start" value="09:00" step="300">
+    </div>
+    <div>
+      <label for="slot-end">End</label>
+      <input type="time" id="slot-end" value="17:00" step="300">
+    </div>
+    <div>
+      <label for="slot-voice">Voice</label>
+      <select id="slot-voice">
+        <option value="">Random</option>
+      </select>
+    </div>
+  </div>
+  <div class="actions" style="margin-top:0.9rem">
+    <button class="btn btn-primary" id="add-slot-btn" type="button">Add time slot</button>
+    <button class="btn btn-ghost" id="save-slots-btn" type="button">Save schedule</button>
+  </div>
+  <p class="status" id="slots-status"></p>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/audio.js"></script>
+<script>window.__PROVIDER__ = "{{ provider }}";</script>
+{% if provider == "gemini" %}
+<script src="/static/js/voice-picker.js"></script>
+{% else %}
+<script src="/static/js/clone.js"></script>
+{% endif %}
+<script src="/static/js/voices.js"></script>
+{% endblock %}

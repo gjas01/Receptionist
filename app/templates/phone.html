@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Add a Phone Number · Front Desk{% endblock %}
+{% block content %}
+<section class="narrow card">
+  <p class="eyebrow">Twilio carrier</p>
+  <h1>Add a Phone Number</h1>
+  <p class="lead">These credentials are used to register the voice webhook, answer calls, and place calls. Twilio is only the phone carrier; conversation audio is handled by Qwen.</p>
+
+  <form id="phone-form" method="post" action="/phone">
+    <label for="owner_name">Your name</label>
+    <input id="owner_name" name="owner_name" required value="{{ user.full_name or (user.phone.owner_name if user.phone else '') }}">
+    <p class="hint">Used in the cloned-voice preview and as the person the receptionist represents.</p>
+
+    <label for="twilio_account_sid">Twilio Account SID</label>
+    <input id="twilio_account_sid" name="twilio_account_sid" required value="{{ user.phone.twilio_account_sid if user.phone else '' }}" autocomplete="off">
+
+    <label for="twilio_auth_token">Twilio Auth Token</label>
+    <input id="twilio_auth_token" name="twilio_auth_token" type="password" required value="{{ user.phone.twilio_auth_token if user.phone else '' }}" autocomplete="off">
+
+    <label for="twilio_phone_number">Twilio phone number</label>
+    <input id="twilio_phone_number" name="twilio_phone_number" required placeholder="+441234567890" value="{{ user.phone.twilio_phone_number if user.phone else '' }}">
+    <p class="hint">E.164 format, including the country code.</p>
+
+    {% if user.phone and user.phone.webhook_error %}
+      <p class="flash info">Last webhook attempt: {{ user.phone.webhook_error }}</p>
+    {% endif %}
+
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Save number</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

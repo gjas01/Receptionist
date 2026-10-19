@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Register · Front Desk{% endblock %}
+{% block content %}
+<section class="narrow card">
+  <p class="eyebrow">New account</p>
+  <h1>Register</h1>
+  <p class="lead">Email is your login. Business name is optional and used in the telephone greeting.</p>
+  <form method="post" action="/register" autocomplete="on">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" required autocomplete="email">
+
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+    <p class="hint">At least 8 characters.</p>
+
+    <label for="password_confirm">Confirm password</label>
+    <input id="password_confirm" name="password_confirm" type="password" required minlength="8" autocomplete="new-password">
+
+    <label for="business">Business name <span class="hint">(optional)</span></label>
+    <input id="business" name="business" type="text" maxlength="255" autocomplete="organization">
+
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Create account</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

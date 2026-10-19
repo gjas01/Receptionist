@@ -1,0 +1,82 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+UK = ZoneInfo("Europe/London")
+
+
+def uk_now() -> datetime:
+    return datetime.now(UK)
+
+
+def uk_time_of_day(now: datetime | None = None) -> str:
+    """UK greeting window: morning until noon, afternoon until 5pm, evening until midnight."""
+    current = now or uk_now()
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=UK)
+    hour = current.hour
+    if hour < 12:
+        return "morning"
+    if hour < 17:
+        return "afternoon"
+    return "evening"
+
+
+def company_label(business_name: str | None, full_name: str | None) -> str:
+    business = (business_name or "").strip()
+    if business:
+        return business
+    name = (full_name or "").strip()
+    if name:
+        return f"{name}'s office"
+    return "the office"
+
+
+def receptionist_greeting(
+    business_name: str | None = None,
+    full_name: str | None = None,
+    now: datetime | None = None,
+) -> str:
+    period = uk_time_of_day(now)
+    return f"Good {period}, this is {company_label(business_name, full_name)}, how can I help?"
+
+
+RECEPTIONIST_KNOWLEDGE = (
+    "KNOWLEDGE: PEOPLE: People within the company are Marcie Terman - Business Development "
+    "Director, Gavin Smith - AI Engineering Director, Alex Nelson - Senior Infrastructure "
+    "Engineer, Austin Cooper - DevOps, Pranav Chandra - GUI Development, Lynn Hay "
+    "(previously Johnston) - Accounts, Denise Jay - Accounts. Anyone else ask what "
+    "department are they trying to contact and connect to the most likely person. "
+    "SERVICES: Datafort provides AI Training, AI development capability and AI consultancy. "
+    "We also provide secure server backup, recovery, and cloud operation services."
+)
+
+
+def receptionist_instructions(
+    business_name: str | None,
+    full_name: str | None,
+    greeting: str,
+    delivery: str | None = None,
+) -> str:
+    from app.config import get_settings
+
+    company = company_label(business_name, full_name)
+    person = (full_name or "").strip() or "the owner"
+    line = (delivery or "").strip() or get_settings().qwen_voice_delivery.strip()
+    voice_line = f"Delivery: {line}." if line else "Use natural British English."
+    return (
+        f"You are a professional telephone receptionist for {company}. "
+        f"You speak in the voice of {person}. "
+        f"{voice_line} Be warm, concise, and helpful. "
+        "Do not mention that you are an AI unless the caller asks. "
+        "You do not have tools or calendars yet; take a message, answer general questions, "
+        "and offer to have someone call back. "
+        f"When the call begins, greet the caller with exactly: \"{greeting}\" "
+        "Then wait for the caller to speak and continue the conversation. "
+        "If the person speaks in a foreign language say something like "
+        "\"Sorry, can you repeat that\". "
+        "Don't always answer with the same words. "
+        "If the person asks something not relevant for a receptionist to answer then "
+        "50% chance that the model should have a light laugh then always say something "
+        "like \"is there someone I can connect you with?\" Don't always use the same words. "
+        f"{RECEPTIONIST_KNOWLEDGE}"
+    )

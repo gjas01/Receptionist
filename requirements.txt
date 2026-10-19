@@ -1,0 +1,12 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+jinja2==3.1.6
+python-multipart==0.0.20
+sqlalchemy==2.0.40
+bcrypt==4.2.1
+itsdangerous==2.2.0
+httpx==0.28.1
+websockets==15.0.1
+python-dotenv==1.1.0
+twilio==9.5.2
+pydantic-settings==2.8.1

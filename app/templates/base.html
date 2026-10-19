@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Receptionist{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,650&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="{% if user %}/dashboard{% else %}/{% endif %}">
+      <div class="brand-mark">Front<span>Desk</span></div>
+      <div class="brand-sub">Virtual receptionist</div>
+    </a>
+    <nav class="nav">
+      {% if user %}
+        <a href="/dashboard">Dashboard</a>
+        <a href="/phone">Add a Phone Number</a>
+        <a href="/voice">{% if provider == "gemini" %}Choose a Voice{% else %}Clone a Voice{% endif %}</a>
+        {% if test_mode %}
+          <form action="/mode/live" method="post"><button class="linkish" type="submit">Switch to Live Mode</button></form>
+        {% else %}
+          <form action="/mode/test" method="post"><button class="linkish" type="submit">Run in Test Mode</button></form>
+        {% endif %}
+        <form action="/logout" method="post"><button class="linkish" type="submit">Log out</button></form>
+      {% else %}
+        <a href="/login">Log in</a>
+        <a href="/register">Register</a>
+      {% endif %}
+    </nav>
+  </header>
+  {% if user and test_mode %}
+    <p class="banner">Test mode is on. Simulated calls use this computer’s microphone as the caller and speakers as the receptionist.</p>
+  {% endif %}
+  <main>
+    <div class="wrap">
+      {% for item in flash_messages %}
+        <div class="flash {{ item.category }}">{{ item.message }}</div>
+      {% endfor %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+  <footer>Sprint 1 · Qwen {{ qwen_model }} · UK time of day for greetings</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

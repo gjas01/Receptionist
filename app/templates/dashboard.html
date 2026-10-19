@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Front Desk{% endblock %}
+{% block content %}
+<p class="eyebrow">Signed in as {{ user.email }}</p>
+<h1>Dashboard</h1>
+<p class="lead">Key setup for this sprint. Helpers and richer call handling come in sprint 2.</p>
+
+{% if not qwen_configured %}
+  <div class="flash info">Qwen is not configured. Set <code>API_ENDPOINT</code> and <code>DASHSCOPE_KEY</code> in <code>.env</code> before cloning a voice or running a test call.</div>
+{% endif %}
+
+<div class="grid">
+  <div class="stat">
+    <div class="label">Mode</div>
+    <div class="value">{% if test_mode %}Test{% else %}Live{% endif %}</div>
+    <p class="hint">{% if test_mode %}Headphones are the incoming caller.{% else %}Twilio webhook is used for real calls.{% endif %}</p>
+  </div>
+  <div class="stat">
+    <div class="label">Business</div>
+    <div class="value">{{ user.business_name or "Not set" }}</div>
+  </div>
+  <div class="stat">
+    <div class="label">Phone number</div>
+    <div class="value">{{ user.phone.twilio_phone_number if user.phone else "Not added" }}</div>
+    {% if user.phone %}
+      <span class="pill {% if user.phone.webhook_registered %}{% else %}warn{% endif %}">
+        {% if user.phone.webhook_registered %}Webhook registered{% else %}Webhook pending{% endif %}
+      </span>
+    {% endif %}
+  </div>
+  <div class="stat">
+    <div class="label">Voice answering now</div>
+    <div class="value">{% if current_voice_name %}{{ current_voice_name }}{% else %}Default preset{% endif %}</div>
+    <p class="hint">
+      {% if current_voice_name %}{{ current_reason }} — {{ now_line }}.
+      {% elif voice_status == "stale" %}Stored voices were made for another model; re-clone for {{ qwen_model }}.
+      {% else %}No stored voices yet — using {{ qwen_voice }} on {{ qwen_model }}.{% endif %}
+      <a href="/voice">Manage voices &amp; schedule</a>
+    </p>
+  </div>
+</div>
+
+<div class="card" style="margin-top:1.4rem">
+  <h2>Greeting preview</h2>
+  <p>Current UK time of day: <strong>{{ time_of_day }}</strong></p>
+  <p class="script">“{{ greeting_preview }}”</p>
+</div>
+
+{% if test_mode %}
+  <div class="card" id="test-panel">
+    <h2>Simulate an incoming call</h2>
+    <p>This computer’s microphone is the caller. The receptionist voice plays through the speakers or headphones.</p>
+    {% if voice_status != "cloned" %}
+      <p class="flash info">No cloned voice is active for {{ qwen_model }}, so the test call will use the preset voice <code>{{ qwen_voice }}</code>. Start a call anyway, or clone a voice first.</p>
+    {% endif %}
+    <div class="actions">
+      <button class="btn btn-primary" id="start-call" type="button">Simulate incoming call</button>
+      <button class="btn btn-danger" id="hangup" type="button" disabled>Hang up</button>
+    </div>
+    <p class="status" id="call-status">Waiting to start.</p>
+    <div class="transcript" id="transcript"></div>
+  </div>
+{% else %}
+  <div class="card">
+    <h2>Live calls</h2>
+    <p>When a Twilio number is connected, callers reach the Qwen receptionist through the voice webhook. Use test mode on this machine until the app is deployed with a public URL.</p>
+    <form action="/mode/test" method="post">
+      <button class="btn btn-primary" type="submit">Run in Test Mode</button>
+    </form>
+  </div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if test_mode %}
+<script src="/static/js/audio.js"></script>
+<script src="/static/js/test-call.js"></script>
+{% endif %}
+{% endblock %}
