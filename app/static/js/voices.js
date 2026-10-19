@@ -37,7 +37,7 @@ function fmtDay(day) {
 
 async function loadVoices() {
   const response = await fetch("/api/voices");
-  const data = await response.json();
+  const data = await parseJson(response);
   if (!response.ok) throw new Error(data.error || "Could not load voices.");
   voices = data.voices;
   slots = data.slots;
@@ -94,7 +94,7 @@ voicesBody.addEventListener("click", async (event) => {
       if (!window.confirm(`Delete “${voiceLabel(voice)}”? Schedule slots using it become random.`)) return;
       const body = new FormData();
       const response = await fetch(`/api/voice/${id}/delete`, { method: "POST", body });
-      const data = await response.json();
+      const data = await parseJson(response);
       if (!response.ok) throw new Error(data.error || "Delete failed.");
       await loadVoices();
     } else if (btn.classList.contains("preview-voice")) {
@@ -110,7 +110,7 @@ async function renameVoice(id, name) {
   const body = new FormData();
   body.append("name", name);
   const response = await fetch(`/api/voice/${id}/update`, { method: "POST", body });
-  const data = await response.json();
+  const data = await parseJson(response);
   if (!response.ok) throw new Error(data.error || "Could not rename the voice.");
   voicesStatus.textContent = `Saved as “${data.voice.name}”.`;
   await loadVoices();
@@ -224,7 +224,7 @@ saveSlotsBtn.addEventListener("click", async () => {
         slots: slots.map((s) => ({ day: s.day, start: s.start, end: s.end, voice_id: s.voice_id })),
       }),
     });
-    const data = await response.json();
+    const data = await parseJson(response);
     if (!response.ok) throw new Error(data.error || "Could not save the schedule.");
     slots = data.slots;
     renderSlots();

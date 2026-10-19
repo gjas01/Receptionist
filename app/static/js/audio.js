@@ -1,3 +1,18 @@
+/* Robust JSON parsing: API errors can arrive as plain text (e.g. a 500),
+   which must not surface as a raw "is not valid JSON" SyntaxError. */
+async function parseJson(response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    if (!response.ok) {
+      const first = (text || "").trim().split("\n")[0];
+      throw new Error(`Server error ${response.status}: ${first || "unexpected response"}`);
+    }
+    throw new Error("Unexpected response from the server.");
+  }
+}
+
 function resampleFloat32(input, fromRate, toRate) {
   if (fromRate === toRate) return input;
   const ratio = fromRate / toRate;

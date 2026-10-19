@@ -90,6 +90,11 @@ async def create_cloned_voice(
                 "Set QWEN_MODEL to a model with cloning enabled (for example "
                 "qwen3.5-omni-plus-realtime) to clone your own voice."
             )
+        if "DurationLimitError" in text or "duration" in text.lower():
+            raise RuntimeError(
+                "The recording is too long for cloning. Use a clip of about 20-60 seconds "
+                "of clear speech."
+            )
         raise RuntimeError(f"Voice cloning failed ({response.status_code}): {text}")
     try:
         output = response.json()["output"]

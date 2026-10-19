@@ -69,7 +69,7 @@ saveBtn.addEventListener("click", async () => {
     body.append("name", nameEl ? nameEl.value.trim() : "");
     body.append("delivery", shapingText());
     const response = await fetch("/api/voice/preset", { method: "POST", body });
-    const data = await response.json();
+    const data = await parseJson(response);
     if (!response.ok) throw new Error(data.error || "Could not save the voice.");
     statusEl.textContent = `“${data.voice.name}” is in your voices list. Add it to the schedule, or leave uncovered hours random.`;
     if (window.refreshVoices) window.refreshVoices();

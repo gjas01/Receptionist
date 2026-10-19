@@ -155,7 +155,7 @@ async function submitClone(blob, filename, mime, onFail) {
   body.append("name", label.trim());
   try {
     const response = await fetch("/api/voice/clone", { method: "POST", body });
-    const data = await response.json();
+    const data = await parseJson(response);
     if (!response.ok) throw new Error(data.error || "Cloning failed.");
     setStatus(`Voice cloned${data.voice && data.voice.name ? ` as “${data.voice.name}”` : ""}.`);
     if (window.refreshVoices) window.refreshVoices();
