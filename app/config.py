@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     vad_threshold: float = 0.5
     vad_silence_duration_ms: int = 800
     vad_prefix_padding_ms: int = 300
+    # Hard floor for turn-end detection: the caller must be silent at least
+    # this long before their answer is considered complete and the
+    # receptionist may respond — never interrupt mid-sentence (env:
+    # VAD_MIN_SILENCE_MS). A smaller vad_silence_duration_ms is raised to this.
+    vad_min_silence_ms: int = 500
     # Idle timeout: seconds without hearing the caller before the call is
     # closed quietly (no prompts, no goodbye). 0 = keep the line open forever
     # (env: CALL_IDLE_TIMEOUT). Measured from the end of the receptionist's

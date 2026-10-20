@@ -77,7 +77,9 @@ RECEPTIONIST_RESPONSE_MANAGEMENT = (
     "RESPONSE MANAGEMENT: For anything you think you hear from the caller, scale "
     "the likelihood that it is a genuine response to your question or statement on "
     "a 1-10. If the likelihood is less than 7, do not try to respond — stay quiet "
-    "and wait for the correct response."
+    "and wait for the correct response. Let the caller finish speaking before you "
+    "answer: if there has not been at least half a second of silence after their "
+    "last words, they may still be talking, so wait rather than interrupting."
 )
 
 

@@ -34,7 +34,10 @@ def _vad() -> dict[str, Any]:
     return {
         "type": "server_vad",
         "threshold": s.vad_threshold,
-        "silence_duration_ms": s.vad_silence_duration_ms,
+        # Never treat the caller's turn as ended until they have been quiet
+        # for at least vad_min_silence_ms — mid-sentence breaths must not
+        # trigger an early answer.
+        "silence_duration_ms": max(s.vad_silence_duration_ms, s.vad_min_silence_ms),
         "prefix_padding_ms": s.vad_prefix_padding_ms,
         # Noise that briefly trips the VAD must not cut off the greeting or
         # an answer already in progress.
