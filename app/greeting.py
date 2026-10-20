@@ -62,6 +62,19 @@ RECEPTIONIST_RESTRICTIONS = (
 )
 
 
+RECEPTIONIST_AUDIO_RULES = (
+    "BACKGROUND NOISE AND SILENCE: You may overhear other conversations, a TV, or "
+    "speech that is not the caller answering you, especially while you are speaking. "
+    "Ignore anything that seems out of context, is not addressed to you, or is in a "
+    "foreign language, and do not respond to it. If the caller has not said anything "
+    "clear to you for more than about a second after you spoke, ask again: \"Can I "
+    "help?\" If there is still no clear answer, ask one more time. If the caller has "
+    "still not answered after those two attempts, say exactly: \"Sorry, I can't hear "
+    "you. Please call back.\" then stop talking; the system will end the call. Never "
+    "invent a reply for silence or background noise."
+)
+
+
 def receptionist_instructions(
     business_name: str | None,
     full_name: str | None,
@@ -83,12 +96,13 @@ def receptionist_instructions(
         "and offer to have someone call back. "
         f"When the call begins, greet the caller with exactly: \"{greeting}\" "
         "Then wait for the caller to speak and continue the conversation. "
-        "If the person speaks in a foreign language say something like "
-        "\"Sorry, can you repeat that\". "
+        "If a caller clearly speaking to you uses a foreign language say something "
+        "like \"Sorry, can you repeat that\". "
         "Don't always answer with the same words. "
         "If the person asks something not relevant for a receptionist to answer then "
         "50% chance that the model should have a light laugh then always say something "
         "like \"is there someone I can connect you with?\" Don't always use the same words. "
         f"{RECEPTIONIST_KNOWLEDGE} "
-        f"{RECEPTIONIST_RESTRICTIONS}"
+        f"{RECEPTIONIST_RESTRICTIONS} "
+        f"{RECEPTIONIST_AUDIO_RULES}"
     )

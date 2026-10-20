@@ -48,6 +48,8 @@ startBtn.addEventListener("click", async () => {
         addLine("Receptionist", message.text);
       } else if (message.type === "caller") {
         addLine("Caller", message.text);
+      } else if (message.type === "ended") {
+        addLine("System", "The receptionist could not hear you and ended the call.");
       } else if (message.type === "error") {
         setStatus(message.message);
       }

@@ -48,3 +48,15 @@ def register_voice_webhook(account_sid: str, auth_token: str, phone_number: str)
         detail = exc.msg or str(exc)
         raise RuntimeError(f"Twilio rejected the webhook update: {detail}") from exc
     log.info("Registered Twilio voice webhook for %s -> %s", phone_number, voice_url)
+
+
+def hangup_call(account_sid: str, auth_token: str, call_sid: str) -> None:
+    """End an in-progress Twilio call leg (used by the silence guard)."""
+    if not call_sid:
+        return
+    client = Client(account_sid, auth_token)
+    try:
+        client.calls(call_sid).update(status="completed")
+        log.info("Hung up Twilio call %s", call_sid)
+    except TwilioRestException as exc:
+        log.warning("Could not hang up Twilio call %s: %s", call_sid, exc)
