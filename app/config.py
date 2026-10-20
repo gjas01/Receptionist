@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     vad_threshold: float = 0.5
     vad_silence_duration_ms: int = 800
     vad_prefix_padding_ms: int = 300
+    # Idle timeout: seconds without hearing the caller before the call is
+    # closed quietly (no prompts, no goodbye). 0 = keep the line open forever
+    # (env: CALL_IDLE_TIMEOUT). Measured from the end of the receptionist's
+    # last word.
+    call_idle_timeout: float = 60.0
     secret_key: str = "dev-only-change-me"
     public_base_url: str = "http://localhost:8000"
     data_dir: str = "./data"

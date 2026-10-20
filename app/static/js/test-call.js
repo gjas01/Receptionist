@@ -48,6 +48,8 @@ startBtn.addEventListener("click", async () => {
         addLine("Receptionist", message.text);
       } else if (message.type === "caller") {
         addLine("Caller", message.text);
+      } else if (message.type === "ended") {
+        addLine("System", "No speech was heard for a while, so the call was closed.");
       } else if (message.type === "error") {
         setStatus(message.message);
       }
