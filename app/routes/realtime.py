@@ -24,11 +24,19 @@ from app.provider import (
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-VAD = {
-    "type": "server_vad",
-    "threshold": 0.3,
-    "silence_duration_ms": 700,
-}
+
+def _vad() -> dict[str, Any]:
+    """Server VAD tuned against background noise; overridable via .env."""
+    s = get_settings()
+    return {
+        "type": "server_vad",
+        "threshold": s.vad_threshold,
+        "silence_duration_ms": s.vad_silence_duration_ms,
+        "prefix_padding_ms": s.vad_prefix_padding_ms,
+        # Noise that briefly trips the VAD must not cut off the greeting or
+        # an answer already in progress.
+        "interrupt_response": False,
+    }
 
 
 def _user_from_session(websocket: WebSocket, db: Session) -> User | None:
@@ -166,7 +174,7 @@ async def test_call(websocket: WebSocket):
 
         qwen = create_session(on_audio=on_audio, on_event=on_event)
         await qwen.connect()
-        await qwen.configure(voice=resolve_voice(db, user), instructions=instructions, turn_detection=VAD)
+        await qwen.configure(voice=resolve_voice(db, user), instructions=instructions, turn_detection=_vad())
         await _send_json(websocket, {"type": "ready", "greeting": greeting})
         await qwen.request_response(
             instructions=f'Say exactly this greeting, then wait for the caller: "{greeting}"'
@@ -269,7 +277,7 @@ async def twilio_media(websocket: WebSocket):
 
         qwen = create_session(on_audio=on_audio)
         await qwen.connect()
-        await qwen.configure(voice=resolve_voice(db, user), instructions=instructions, turn_detection=VAD)
+        await qwen.configure(voice=resolve_voice(db, user), instructions=instructions, turn_detection=_vad())
         await qwen.request_response(
             instructions=f'Say exactly this greeting, then wait for the caller: "{greeting}"'
         )

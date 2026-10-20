@@ -26,6 +26,15 @@ class Settings(BaseSettings):
         "Speak as a warm, unhurried 22 year old British receptionist from Edinburgh; "
         "keep sentences short and calm"
     )
+    # Voice-activity detection for incoming caller audio (env: VAD_*).
+    # threshold: 0..1 — higher means quieter sounds stop counting as speech.
+    # silence_duration_ms: how long the caller must be quiet before their turn
+    # ends — longer tolerates mid-sentence pauses without a premature reply.
+    # prefix_padding_ms: audio kept from just before the trigger so the first
+    # syllable isn't clipped.
+    vad_threshold: float = 0.5
+    vad_silence_duration_ms: int = 800
+    vad_prefix_padding_ms: int = 300
     secret_key: str = "dev-only-change-me"
     public_base_url: str = "http://localhost:8000"
     data_dir: str = "./data"
