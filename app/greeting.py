@@ -73,6 +73,14 @@ RECEPTIONIST_AUDIO_RULES = (
 )
 
 
+RECEPTIONIST_RESPONSE_MANAGEMENT = (
+    "RESPONSE MANAGEMENT: For anything you think you hear from the caller, scale "
+    "the likelihood that it is a genuine response to your question or statement on "
+    "a 1-10. If the likelihood is less than 7, do not try to respond — stay quiet "
+    "and wait for the correct response."
+)
+
+
 def receptionist_instructions(
     business_name: str | None,
     full_name: str | None,
@@ -102,5 +110,6 @@ def receptionist_instructions(
         "like \"is there someone I can connect you with?\" Don't always use the same words. "
         f"{RECEPTIONIST_KNOWLEDGE} "
         f"{RECEPTIONIST_RESTRICTIONS} "
-        f"{RECEPTIONIST_AUDIO_RULES}"
+        f"{RECEPTIONIST_AUDIO_RULES} "
+        f"{RECEPTIONIST_RESPONSE_MANAGEMENT}"
     )
