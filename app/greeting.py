@@ -52,11 +52,13 @@ RECEPTIONIST_KNOWLEDGE = (
 
 
 RECEPTIONIST_RESTRICTIONS = (
-    "RESTRICTIONS: Don't divulge names directly, if someone asks for accounts just say "
-    "that you'll see if anyone is available. If someone asks for a list of people or a "
-    "person in a department just say you can't provide that information but if they "
-    "would like to leave their name, number, and reason for their call we will pass the "
-    "information on."
+    "RESTRICTIONS: Never reveal staff names, a list of people, or who works in which "
+    "department. If someone asks for accounts just say that you'll see if anyone is "
+    "available. If a caller asks for a department or team, you may offer to connect "
+    "them without naming anyone, but before doing so ask for their name, phone "
+    "number, and the reason for their call, and say it is so you don't lose them if "
+    "the line has to divert. If they will not give those details, offer to take a "
+    "message and have someone call them back."
 )
 
 
