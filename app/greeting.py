@@ -66,12 +66,10 @@ RECEPTIONIST_AUDIO_RULES = (
     "BACKGROUND NOISE AND SILENCE: You may overhear other conversations, a TV, or "
     "speech that is not the caller answering you, especially while you are speaking. "
     "Ignore anything that seems out of context, is not addressed to you, or is in a "
-    "foreign language, and do not respond to it. If the caller has not said anything "
-    "clear to you for more than about a second after you spoke, ask again: \"Can I "
-    "help?\" If there is still no clear answer, ask one more time. If the caller has "
-    "still not answered after those two attempts, say exactly: \"Sorry, I can't hear "
-    "you. Please call back.\" then stop talking; the system will end the call. Never "
-    "invent a reply for silence or background noise."
+    "foreign language, and do not respond to it. If the caller is quiet, stay quiet "
+    "and keep the line open — never invent a reply for silence or background noise "
+    "and never end the call yourself. Only respond when the caller clearly speaks "
+    "to you."
 )
 
 

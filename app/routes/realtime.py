@@ -10,7 +10,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from app.audio_convert import RateState, mulaw8k_to_pcm16k, pcm24k_to_mulaw8k
-from app.call_guard import CallGuard
 from app.config import get_settings
 from app.db import SessionLocal
 from app.greeting import receptionist_greeting, receptionist_instructions
@@ -22,7 +21,6 @@ from app.provider import (
     resolve_voice,
     user_provider,
 )
-from app.twilio_util import hangup_call
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -171,15 +169,9 @@ async def test_call(websocket: WebSocket):
         )
 
         async def on_audio(delta_b64: str) -> None:
-            if guard:
-                guard.track_audio(delta_b64)
             await _send_json(websocket, {"type": "audio", "data": delta_b64, "sample_rate": 24000})
 
-        guard: CallGuard | None = None
-
         async def on_event(event: dict[str, Any]) -> None:
-            if guard:
-                guard.handle_event(event)
             event_type = event.get("type")
             if event_type == "response.audio_transcript.delta":
                 await _send_json(websocket, {"type": "agent_delta", "text": event.get("delta", "")})
@@ -191,30 +183,17 @@ async def test_call(websocket: WebSocket):
                 message = (event.get("error") or {}).get("message") or "Qwen returned an error."
                 await _send_json(websocket, {"type": "error", "message": message})
 
-        async def hangup_test() -> None:
-            try:
-                await _send_json(websocket, {"type": "ended", "reason": "silence"})
-                await websocket.close()
-            except Exception:
-                pass
-
         qwen = create_session(on_audio=on_audio, on_event=on_event, provider=provider)
         await qwen.connect()
         await qwen.configure(
             voice=resolve_voice(db, user, provider), instructions=instructions, turn_detection=_vad()
         )
-        guard = CallGuard(
-            qwen, idle_seconds=get_settings().call_idle_seconds, hangup=hangup_test
-        )
-        guard.start()
         await _send_json(websocket, {"type": "ready", "greeting": greeting})
         await qwen.request_response(
             instructions=f'Say exactly this greeting, then wait for the caller: "{greeting}"'
         )
 
         while True:
-            if guard.ended.is_set():
-                break
             try:
                 message = await asyncio.wait_for(websocket.receive(), timeout=0.5)
             except TimeoutError:
@@ -239,8 +218,6 @@ async def test_call(websocket: WebSocket):
         except Exception:
             pass
     finally:
-        if guard:
-            await guard.stop()
         if qwen:
             await qwen.close()
         db.close()
@@ -299,8 +276,6 @@ async def twilio_media(websocket: WebSocket):
         outbound_q: asyncio.Queue[str] = asyncio.Queue()
 
         async def on_audio(delta_b64: str) -> None:
-            if guard:
-                guard.track_audio(delta_b64)
             pcm24k = base64.b64decode(delta_b64)
             mulaw = pcm24k_to_mulaw8k(pcm24k, to_mulaw)
             if not mulaw:
@@ -322,46 +297,18 @@ async def twilio_media(websocket: WebSocket):
                     )
                 )
 
-        guard: CallGuard | None = None
-
-        async def on_event(event: dict[str, Any]) -> None:
-            if guard:
-                guard.handle_event(event)
-
-        async def hangup_twilio() -> None:
-            """End the live call: REST hangup + close the media stream socket."""
-            try:
-                await asyncio.to_thread(
-                    hangup_call,
-                    phone.twilio_account_sid,
-                    phone.twilio_auth_token,
-                    call_sid,
-                )
-            except Exception:
-                log.debug("Twilio REST hangup failed for %s", call_sid, exc_info=True)
-            try:
-                await websocket.close()
-            except Exception:
-                pass
-
-        qwen = create_session(on_audio=on_audio, on_event=on_event, provider=provider)
+        qwen = create_session(on_audio=on_audio, provider=provider)
         await qwen.connect()
         await qwen.configure(
             voice=resolve_voice(db, user, provider), instructions=instructions, turn_detection=_vad()
         )
-        guard = CallGuard(
-            qwen, idle_seconds=get_settings().call_idle_seconds, hangup=hangup_twilio
-        )
         await qwen.request_response(
             instructions=f'Say exactly this greeting, then wait for the caller: "{greeting}"'
         )
-        guard.start()
         pump_task = asyncio.create_task(pump_outbound())
 
         try:
             while True:
-                if guard.ended.is_set():
-                    break
                 try:
                     raw = await asyncio.wait_for(websocket.receive_text(), timeout=0.5)
                 except TimeoutError:
@@ -389,8 +336,6 @@ async def twilio_media(websocket: WebSocket):
     except Exception:
         log.exception("Twilio media bridge failed")
     finally:
-        if guard:
-            await guard.stop()
         if qwen:
             await qwen.close()
         db.close()

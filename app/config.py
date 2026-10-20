@@ -35,9 +35,6 @@ class Settings(BaseSettings):
     vad_threshold: float = 0.5
     vad_silence_duration_ms: int = 800
     vad_prefix_padding_ms: int = 300
-    # Silence guard: how long the caller gets to speak after the receptionist's
-    # last word finishes playing before she asks "Can I help?" (env: CALL_IDLE_SECONDS).
-    call_idle_seconds: float = 3.0
     secret_key: str = "dev-only-change-me"
     public_base_url: str = "http://localhost:8000"
     data_dir: str = "./data"
