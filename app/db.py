@@ -75,6 +75,8 @@ def _migrate_voice_tables() -> None:
                 conn.execute(text("ALTER TABLE users ADD COLUMN company_name VARCHAR(255)"))
             if "settings" not in cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN settings TEXT"))
+            if "provider" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN provider VARCHAR(16)"))
 
     if "voice_clones" in tables and "voices" not in tables:
         with engine.begin() as conn:

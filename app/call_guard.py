@@ -80,8 +80,6 @@ class CallGuard:
         event_type = event.get("type") or ""
         if event_type == "response.created":
             self._agent_speaking = True
-        elif event_type == "response.audio.delta":
-            self._track_audio(event.get("delta") or event.get("audio") or "")
         elif event_type == "response.done":
             self._agent_speaking = False
             self._last_activity = time.monotonic()
@@ -97,16 +95,20 @@ class CallGuard:
             if is_farewell(event.get("transcript")):
                 self._begin_close()
 
-    def _track_audio(self, delta_b64: str) -> None:
-        """Extend the playback-end estimate for the audio just streamed.
+    def track_audio(self, delta_b64: str) -> None:
+        """Extend the playback-end estimate for audio streamed to the caller.
 
-        The model streams faster than real time, so keep a virtual play queue:
-        each chunk is scheduled after everything already queued. 24 kHz mono
-        s16le = 48000 bytes per second of speech.
+        Both engines deliver every outgoing chunk to `on_audio`, so call this
+        from there. The model streams faster than real time, so keep a virtual
+        play queue: each chunk is scheduled after everything already queued.
+        24 kHz mono s16le = 48000 bytes per second of speech.
         """
         if not delta_b64:
             return
-        approx_bytes = (len(delta_b64) // 4) * 3
+        try:
+            approx_bytes = (len(delta_b64) // 4) * 3
+        except TypeError:
+            return
         seconds = approx_bytes / 48000.0
         now = time.monotonic()
         self._playback_until = max(now, self._playback_until) + seconds

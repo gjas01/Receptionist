@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.db import get_db
 from app import schedule
 from app.models import User, Voice, VoiceSlot
+from app.provider import user_provider
 from app.qwen import create_cloned_voice, preferred_voice_name
 
 log = logging.getLogger(__name__)
@@ -42,14 +43,16 @@ class SlotsRequest(BaseModel):
     slots: list[SlotPayload]
 
 
-def _voice_row(v: Voice) -> dict:
+def _voice_row(v: Voice, provider: str | None = None) -> dict:
+    settings = get_settings()
+    provider = provider or settings.active_provider
     return {
         "id": v.id,
         "name": v.name,
         "voice_id": v.voice_id,
         "target_model": v.target_model,
         "delivery": v.delivery or "",
-        "for_active_model": v.target_model == get_settings().active_model,
+        "for_active_model": v.target_model == settings.model_for(provider),
     }
 
 
@@ -68,18 +71,20 @@ async def list_voices(request: Request, db: Session = Depends(get_db)):
     if not user:
         return JSONResponse({"error": "Please log in first."}, status_code=401)
     settings = get_settings()
+    provider = user_provider(user)
+    target_model = settings.model_for(provider)
     voices = _user_voices(db, user)
     slots = schedule.load_slots(db, user.id)
-    active, reason = schedule.pick_voice(db, user.id)
+    active, reason = schedule.pick_voice(db, user.id, target_model=target_model)
     return JSONResponse(
         {
-            "voices": [_voice_row(v) for v in voices],
+            "voices": [_voice_row(v, provider) for v in voices],
             "slots": [s.as_row() for s in slots],
             "now": {"day": schedule.uk_now().weekday(), "time": schedule.uk_now().strftime("%H:%M")},
             "active_voice_id": active.id if active else None,
             "reason": reason,
-            "active_model": settings.active_model,
-            "provider": settings.active_provider,
+            "active_model": target_model,
+            "provider": provider,
             "day_names": schedule.DAY_NAMES,
         }
     )
@@ -99,9 +104,9 @@ async def set_preset_voice(
         return JSONResponse({"error": "Please log in first."}, status_code=401)
 
     settings = get_settings()
-    if settings.active_provider != "gemini":
+    if user_provider(user) != "gemini":
         return JSONResponse(
-            {"error": "Preset voice selection is only for the Gemini provider."},
+            {"error": "Preset voice selection is only for the Gemini engine. Switch engine first."},
             status_code=400,
         )
     from app.gemini import GEMINI_VOICES
@@ -130,7 +135,7 @@ async def set_preset_voice(
     voice.delivery = delivery.strip()[:1000] or None
     db.commit()
 
-    return JSONResponse({"voice": _voice_row(voice)})
+    return JSONResponse({"voice": _voice_row(voice, "gemini")})
 
 
 @router.post("/api/voice/clone")
@@ -147,11 +152,11 @@ async def clone_voice(
         return JSONResponse({"error": "Please log in first."}, status_code=401)
 
     settings = get_settings()
-    if settings.active_provider == "gemini":
+    if user_provider(user) == "gemini":
         return JSONResponse(
             {
                 "error": "Gemini Live uses its 30 built-in voices; microphone cloning is "
-                "reserved for the Qwen provider. Pick a voice from the list instead."
+                "only available on the Qwen engine. Switch engine first, or pick a voice from the list."
             },
             status_code=400,
         )
@@ -203,7 +208,7 @@ async def clone_voice(
             "voice_id": voice_id,
             "target_model": settings.qwen_model,
             "preview_phrase": phrase,
-            "voice": _voice_row(voice),
+            "voice": _voice_row(voice, "qwen"),
         }
     )
 
@@ -231,7 +236,7 @@ async def update_voice(
     if delivery is not None:
         voice.delivery = delivery.strip()[:1000] or None
     db.commit()
-    return JSONResponse({"voice": _voice_row(voice)})
+    return JSONResponse({"voice": _voice_row(voice, user_provider(user))})
 
 
 @router.post("/api/voice/{voice_id}/delete")

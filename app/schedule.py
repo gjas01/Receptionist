@@ -133,16 +133,21 @@ def active_slot(db: Session, user_id: int, when: datetime | None = None) -> Slot
     return best
 
 
-def pick_voice(db: Session, user_id: int, when: datetime | None = None):
+def pick_voice(
+    db: Session,
+    user_id: int,
+    when: datetime | None = None,
+    target_model: str | None = None,
+):
     """Return (voice, reason) for who should answer now.
 
-    Voices saved for a different model than the active one are ignored — the
-    scheduler degrades gracefully (slot voice -> random -> none).
+    Voices saved for a different model than the active engine are ignored —
+    the scheduler degrades gracefully (slot voice -> random -> none).
     voice may be None (nothing usable -> caller falls back to provider default).
     """
     from app.config import get_settings
 
-    active_model = get_settings().active_model
+    active_model = target_model or get_settings().active_model
 
     def usable(v):
         return v is not None and v.target_model == active_model

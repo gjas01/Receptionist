@@ -20,6 +20,7 @@ from app.provider import (
     resolve_active_voice,
     resolve_delivery,
     resolve_voice,
+    user_provider,
 )
 from app.twilio_util import hangup_call
 
@@ -85,16 +86,17 @@ async def voice_preview(websocket: WebSocket):
 
         # Optional ?voice=Name & ?delivery=Text queries let the UI audition
         # a preset/shape before saving. Saved per-voice delivery wins over the app default.
+        provider = user_provider(user)
         override = websocket.query_params.get("voice")
-        voice = override.strip() if override and override.strip() else resolve_voice(db, user)
+        voice = override.strip() if override and override.strip() else resolve_voice(db, user, provider)
         q_delivery = (websocket.query_params.get("delivery") or "").strip()
         if override and override.strip():
             active_voice = None
         else:
-            active_voice, _ = resolve_active_voice(db, user)
+            active_voice, _ = resolve_active_voice(db, user, provider)
         stored = ((active_voice.delivery if active_voice else "") or "").strip()
         delivery = q_delivery or stored or get_settings().qwen_voice_delivery.strip()
-        qwen = create_session(on_audio=on_audio, on_event=on_event)
+        qwen = create_session(on_audio=on_audio, on_event=on_event, provider=provider)
         await qwen.connect()
         await qwen.configure(
             voice=voice,
@@ -152,14 +154,25 @@ async def test_call(websocket: WebSocket):
             await _send_json(websocket, {"type": "error", "message": "Switch to test mode first."})
             return
 
+        provider = user_provider(user)
         greeting = receptionist_greeting(user.business_name, user.full_name)
-        active_voice, why = resolve_active_voice(db, user)
-        log.info("Test call answering with voice=%s (%s)", getattr(active_voice, "name", None) or "default", why)
+        active_voice, why = resolve_active_voice(db, user, provider)
+        log.info(
+            "Test call answering (provider=%s) with voice=%s (%s)",
+            provider,
+            getattr(active_voice, "name", None) or "default",
+            why,
+        )
         instructions = receptionist_instructions(
-            user.business_name, user.full_name, greeting, delivery=resolve_delivery(db, user)
+            user.business_name,
+            user.full_name,
+            greeting,
+            delivery=resolve_delivery(db, user, provider),
         )
 
         async def on_audio(delta_b64: str) -> None:
+            if guard:
+                guard.track_audio(delta_b64)
             await _send_json(websocket, {"type": "audio", "data": delta_b64, "sample_rate": 24000})
 
         guard: CallGuard | None = None
@@ -185,9 +198,11 @@ async def test_call(websocket: WebSocket):
             except Exception:
                 pass
 
-        qwen = create_session(on_audio=on_audio, on_event=on_event)
+        qwen = create_session(on_audio=on_audio, on_event=on_event, provider=provider)
         await qwen.connect()
-        await qwen.configure(voice=resolve_voice(db, user), instructions=instructions, turn_detection=_vad())
+        await qwen.configure(
+            voice=resolve_voice(db, user, provider), instructions=instructions, turn_detection=_vad()
+        )
         guard = CallGuard(
             qwen, idle_seconds=get_settings().call_idle_seconds, hangup=hangup_test
         )
@@ -265,20 +280,27 @@ async def twilio_media(websocket: WebSocket):
             log.error("Twilio stream has no account for %s", to_number)
             return
 
+        provider = user_provider(user)
         greeting = receptionist_greeting(user.business_name, user.full_name)
-        active_voice, why = resolve_active_voice(db, user)
+        active_voice, why = resolve_active_voice(db, user, provider)
         log.info(
-            "Live call answering %s with voice=%s (%s)",
+            "Live call answering %s (provider=%s) with voice=%s (%s)",
             to_number,
+            provider,
             getattr(active_voice, "name", None) or "default",
             why,
         )
         instructions = receptionist_instructions(
-            user.business_name, user.full_name, greeting, delivery=resolve_delivery(db, user)
+            user.business_name,
+            user.full_name,
+            greeting,
+            delivery=resolve_delivery(db, user, provider),
         )
         outbound_q: asyncio.Queue[str] = asyncio.Queue()
 
         async def on_audio(delta_b64: str) -> None:
+            if guard:
+                guard.track_audio(delta_b64)
             pcm24k = base64.b64decode(delta_b64)
             mulaw = pcm24k_to_mulaw8k(pcm24k, to_mulaw)
             if not mulaw:
@@ -322,9 +344,11 @@ async def twilio_media(websocket: WebSocket):
             except Exception:
                 pass
 
-        qwen = create_session(on_audio=on_audio, on_event=on_event)
+        qwen = create_session(on_audio=on_audio, on_event=on_event, provider=provider)
         await qwen.connect()
-        await qwen.configure(voice=resolve_voice(db, user), instructions=instructions, turn_detection=_vad())
+        await qwen.configure(
+            voice=resolve_voice(db, user, provider), instructions=instructions, turn_detection=_vad()
+        )
         guard = CallGuard(
             qwen, idle_seconds=get_settings().call_idle_seconds, hangup=hangup_twilio
         )

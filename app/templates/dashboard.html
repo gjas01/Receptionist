@@ -6,7 +6,8 @@
 <p class="lead">Key setup for this sprint. Helpers and richer call handling come in sprint 2.</p>
 
 {% if not qwen_configured %}
-  <div class="flash info">Qwen is not configured. Set <code>API_ENDPOINT</code> and <code>DASHSCOPE_KEY</code> in <code>.env</code> before cloning a voice or running a test call.</div>
+  <div class="flash info">The {% if provider_is_gemini %}Google Gemini{% else %}Qwen{% endif %} engine is not configured. {% if provider_is_gemini %}Set <code>GEMINI_API_KEY</code>{% else %}Set <code>API_ENDPOINT</code> and <code>DASHSCOPE_KEY</code>{% endif %} in <code>.env</code>, or switch engine above, before cloning a voice or running a test call.
+  </div>
 {% endif %}
 
 <div class="grid">
@@ -33,7 +34,7 @@
     <div class="value">{% if current_voice_name %}{{ current_voice_name }}{% else %}Default preset{% endif %}</div>
     <p class="hint">
       {% if current_voice_name %}{{ current_reason }} — {{ now_line }}.
-      {% elif voice_status == "stale" %}Stored voices were made for another model; re-clone for {{ qwen_model }}.
+      {% elif voice_status == "stale" %}Your stored voices belong to the other engine — switch above, or add voices for {{ qwen_model }}.
       {% else %}No stored voices yet — using {{ qwen_voice }} on {{ qwen_model }}.{% endif %}
       <a href="/voice">Manage voices &amp; schedule</a>
     </p>
@@ -51,7 +52,7 @@
     <h2>Simulate an incoming call</h2>
     <p>This computer’s microphone is the caller. The receptionist voice plays through the speakers or headphones.</p>
     {% if voice_status != "cloned" %}
-      <p class="flash info">No cloned voice is active for {{ qwen_model }}, so the test call will use the preset voice <code>{{ qwen_voice }}</code>. Start a call anyway, or clone a voice first.</p>
+      <p class="flash info">No voice is saved for {{ qwen_model }} yet, so the test call will use the default preset <code>{{ qwen_voice }}</code>. Start a call anyway, or add a voice first.</p>
     {% endif %}
     <div class="actions">
       <button class="btn btn-primary" id="start-call" type="button">Simulate incoming call</button>
@@ -63,7 +64,7 @@
 {% else %}
   <div class="card">
     <h2>Live calls</h2>
-    <p>When a Twilio number is connected, callers reach the Qwen receptionist through the voice webhook. Use test mode on this machine until the app is deployed with a public URL.</p>
+    <p>When a Twilio number is connected, callers reach the receptionist through the voice webhook on the {{ provider }} engine. Use test mode on this machine until the app is deployed with a public URL.</p>
     <form action="/mode/test" method="post">
       <button class="btn btn-primary" type="submit">Run in Test Mode</button>
     </form>

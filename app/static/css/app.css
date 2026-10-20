@@ -85,6 +85,52 @@ img { max-width: 100%; }
   font-size: 0.92rem;
 }
 
+.engine-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  padding: 0.55rem 6vw;
+  background: rgba(44, 74, 66, 0.06);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+.engine-label {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.engine-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--card);
+}
+.engine-seg form { margin: 0; }
+.engine-btn {
+  border: 0;
+  background: none;
+  padding: 0.32rem 0.95rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.engine-btn:hover { color: var(--pine); }
+.engine-btn.on {
+  background: var(--pine);
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+}
+.engine-model {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 main { padding: 2.4rem 6vw 4rem; }
 .wrap { max-width: 1080px; margin: 0 auto; }
 .narrow { max-width: 560px; }

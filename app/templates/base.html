@@ -32,6 +32,26 @@
       {% endif %}
     </nav>
   </header>
+  {% if user %}
+  <div class="engine-switch">
+    <span class="engine-label">Voice engine</span>
+    <div class="engine-seg">
+      <form action="/provider/set" method="post">
+        <input type="hidden" name="provider" value="qwen">
+        <input type="hidden" name="next" value="{{ request.url.path }}">
+        <button type="submit" class="engine-btn{% if provider == 'qwen' %} on{% endif %}"
+                title="{{ providers.qwen.model }}{% if not providers.qwen.configured %} — not configured{% endif %}">Qwen</button>
+      </form>
+      <form action="/provider/set" method="post">
+        <input type="hidden" name="provider" value="gemini">
+        <input type="hidden" name="next" value="{{ request.url.path }}">
+        <button type="submit" class="engine-btn{% if provider == 'gemini' %} on{% endif %}"
+                title="{{ providers.gemini.model }}{% if not providers.gemini.configured %} — not configured{% endif %}">Google Gemini</button>
+      </form>
+    </div>
+    <span class="engine-model">{{ qwen_model }}</span>
+  </div>
+  {% endif %}
   {% if user and test_mode %}
     <p class="banner">Test mode is on. Simulated calls use this computer’s microphone as the caller and speakers as the receptionist.</p>
   {% endif %}
@@ -43,7 +63,7 @@
       {% block content %}{% endblock %}
     </div>
   </main>
-  <footer>Sprint 1 · Qwen {{ qwen_model }} · UK time of day for greetings</footer>
+  <footer>Front Desk · {{ provider }} · {{ qwen_model }} · UK time of day for greetings</footer>
   {% block scripts %}{% endblock %}
 </body>
 </html>

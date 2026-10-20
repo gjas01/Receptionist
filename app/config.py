@@ -85,18 +85,28 @@ class Settings(BaseSettings):
     def gemini_configured(self) -> bool:
         return bool(self.gemini_api_key.strip())
 
+    @staticmethod
+    def normalize_provider(provider: str | None, default: str = "qwen") -> str:
+        p = (provider or "").strip().lower()
+        return p if p in ("qwen", "gemini") else default
+
+    def model_for(self, provider: str) -> str:
+        return self.gemini_model if provider == "gemini" else self.qwen_model
+
+    def configured_for(self, provider: str) -> bool:
+        return self.gemini_configured if provider == "gemini" else self.qwen_configured
+
     @property
     def active_provider(self) -> str:
-        provider = (self.provider or "qwen").strip().lower()
-        return provider if provider in ("qwen", "gemini") else "qwen"
+        return self.normalize_provider(self.provider, "qwen")
 
     @property
     def active_model(self) -> str:
-        return self.gemini_model if self.active_provider == "gemini" else self.qwen_model
+        return self.model_for(self.active_provider)
 
     @property
     def active_configured(self) -> bool:
-        return self.gemini_configured if self.active_provider == "gemini" else self.qwen_configured
+        return self.configured_for(self.active_provider)
 
     @property
     def gemini_ws_url(self) -> str:
@@ -111,15 +121,18 @@ class Settings(BaseSettings):
         """`audio` for the Qwen-Audio-Realtime family, otherwise `omni`."""
         return "audio" if "audio-" in self.qwen_model else "omni"
 
-    @property
-    def default_voice(self) -> str:
-        if self.active_provider == "gemini":
+    def default_voice_for(self, provider: str) -> str:
+        if provider == "gemini":
             return self.gemini_preset_voice.strip() or "Sulafat"
         if self.qwen_preset_voice.strip():
             return self.qwen_preset_voice.strip()
         if self.qwen_family == "audio":
             return "loongmary"
         return "Tina"
+
+    @property
+    def default_voice(self) -> str:
+        return self.default_voice_for(self.active_provider)
 
 
 @lru_cache

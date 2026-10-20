@@ -18,6 +18,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     business_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Per-account realtime engine: "qwen" or "gemini". None = use the .env default.
+    provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     phone: Mapped["PhoneNumber | None"] = relationship(

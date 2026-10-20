@@ -18,6 +18,7 @@ from app.auth import (
 from app.config import get_settings
 from app.db import get_db
 from app.greeting import receptionist_greeting, uk_time_of_day
+from app.provider import user_provider
 from app import models
 from app.models import PhoneNumber, User
 from app.schedule import DAY_NAMES, uk_now
@@ -41,6 +42,8 @@ def pop_flash(request: Request) -> list[dict]:
 def context(request: Request, db: Session, **extra):
     user = get_current_user(request, db)
     settings = get_settings()
+    provider = user_provider(user) if user else settings.active_provider
+    target_model = settings.model_for(provider)
     voices: list = []
     voice_status = "default"
     if user:
@@ -50,7 +53,7 @@ def context(request: Request, db: Session, **extra):
             .order_by(models.Voice.created_at, models.Voice.id)
             .all()
         )
-        usable = [v for v in voices if v.target_model == settings.active_model]
+        usable = [v for v in voices if v.target_model == target_model]
         if usable:
             voice_status = "cloned"
         elif voices:
@@ -60,11 +63,24 @@ def context(request: Request, db: Session, **extra):
         "user": user,
         "flash_messages": pop_flash(request),
         "test_mode": bool(request.session.get("test_mode")),
-        "provider": settings.active_provider,
-        "qwen_configured": settings.active_configured,
-        "qwen_model": settings.active_model,
+        "provider": provider,
+        "qwen_configured": settings.configured_for(provider),
+        "qwen_model": target_model,
+        "provider_is_gemini": provider == "gemini",
+        "providers": {
+            "qwen": {
+                "configured": settings.qwen_configured,
+                "model": settings.qwen_model,
+                "active": provider == "qwen",
+            },
+            "gemini": {
+                "configured": settings.gemini_configured,
+                "model": settings.gemini_model,
+                "active": provider == "gemini",
+            },
+        },
         "qwen_family": settings.qwen_family,
-        "qwen_voice": settings.default_voice,
+        "qwen_voice": settings.default_voice_for(provider),
         "voice_status": voice_status,
         "voices": voices,
         "unnamed_voices": [v for v in voices if not (v.name or "").strip()],
@@ -74,7 +90,7 @@ def context(request: Request, db: Session, **extra):
         from app import schedule
 
         now = uk_now()
-        current, reason = schedule.pick_voice(db, user.id, now)
+        current, reason = schedule.pick_voice(db, user.id, now, target_model=target_model)
         data["current_voice_name"] = (current.name or current.voice_id) if current else None
         data["current_reason"] = reason
         data["now_line"] = f"{DAY_NAMES[now.weekday()]} {now.strftime('%H:%M')} (UK)"
@@ -208,6 +224,34 @@ async def exit_test_mode(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse("/dashboard", status_code=303)
 
 
+@router.post("/provider/set")
+async def set_provider(
+    request: Request,
+    provider: str = Form(...),
+    next: str = Form("/dashboard"),
+    db: Session = Depends(get_db),
+):
+    """Switch this account's realtime engine (Qwen <-> Gemini) for side-by-side tests."""
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+    settings = get_settings()
+    provider = settings.normalize_provider(provider)
+    if not settings.configured_for(provider):
+        key = "GEMINI_API_KEY" if provider == "gemini" else "DASHSCOPE_KEY/API_ENDPOINT"
+        flash(request, f"The {provider} engine isn't configured — {key} is missing from the .env file.", "error")
+    else:
+        from app.provider import set_user_provider
+
+        set_user_provider(user, provider)
+        db.commit()
+        label = "Google Gemini Live" if provider == "gemini" else "Alibaba Qwen realtime"
+        flash(request, f"Switched to the {label} engine ({settings.model_for(provider)}).", "info")
+    if next not in ("/dashboard", "/voice", "/phone"):
+        next = "/dashboard"
+    return RedirectResponse(next, status_code=303)
+
+
 @router.get("/phone")
 async def phone_page(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
@@ -293,7 +337,7 @@ async def voice_page(request: Request, db: Session = Depends(get_db)):
             request,
             db,
             gemini_voices=GEMINI_VOICES,
-            gemini_default_voice=settings.default_voice,
+            gemini_default_voice=settings.default_voice_for(user_provider(user)),
             voice_delivery=settings.qwen_voice_delivery,
         ),
     )

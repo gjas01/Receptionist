@@ -25,6 +25,9 @@
     <tbody id="voices-body"></tbody>
   </table>
   <p class="hint" id="voices-empty" {% if voices %}hidden{% endif %}>No voices stored yet — add one below.</p>
+  {% if voice_status == "stale" %}
+    <p class="flash info">Your stored voices were created for the other engine. Use the switch above to test that engine, or add voices for {{ qwen_model }} below.</p>
+  {% endif %}
   <p class="status" id="voices-status"></p>
 </section>
 
