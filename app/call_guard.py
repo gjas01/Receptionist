@@ -48,6 +48,10 @@ class CallGuard:
         self._hangup = hangup
         self._agent_speaking = False
         self._last_activity = time.monotonic()
+        # Monotonic time at which the receptionist's queued audio finishes
+        # playing. The silence clock must start from her last word, not from
+        # when the model stopped generating.
+        self._playback_until = 0.0
         self._asks = 0
         self._ended = False
         self._closing = False
@@ -76,6 +80,8 @@ class CallGuard:
         event_type = event.get("type") or ""
         if event_type == "response.created":
             self._agent_speaking = True
+        elif event_type == "response.audio.delta":
+            self._track_audio(event.get("delta") or event.get("audio") or "")
         elif event_type == "response.done":
             self._agent_speaking = False
             self._last_activity = time.monotonic()
@@ -91,21 +97,41 @@ class CallGuard:
             if is_farewell(event.get("transcript")):
                 self._begin_close()
 
+    def _track_audio(self, delta_b64: str) -> None:
+        """Extend the playback-end estimate for the audio just streamed.
+
+        The model streams faster than real time, so keep a virtual play queue:
+        each chunk is scheduled after everything already queued. 24 kHz mono
+        s16le = 48000 bytes per second of speech.
+        """
+        if not delta_b64:
+            return
+        approx_bytes = (len(delta_b64) // 4) * 3
+        seconds = approx_bytes / 48000.0
+        now = time.monotonic()
+        self._playback_until = max(now, self._playback_until) + seconds
+
     # ---- internals -------------------------------------------------------
 
     async def _run(self) -> None:
-        tick = max(0.3, self.idle_seconds / 4)
+        tick = 0.25
         while not self._ended:
             await asyncio.sleep(tick)
             if self._ended or self._agent_speaking:
                 continue
-            if time.monotonic() - self._last_activity < self.idle_seconds:
+            # The caller's chance to speak begins when the receptionist's last
+            # word has finished playing, whichever of generation/playback ends
+            # later. Never ask over the top of her own voice.
+            silence_start = max(self._last_activity, self._playback_until)
+            if time.monotonic() - silence_start < self.idle_seconds:
                 continue
             self._asks += 1
             self._last_activity = time.monotonic()
             if self._asks <= MAX_ASKS:
                 log.info("Call idle: asking \"Can I help?\" (%d/%d)", self._asks, MAX_ASKS)
                 await self.qwen.request_response(instructions=FOLLOWUP_INSTRUCTIONS)
+                # _playback_until now tracks the end of this ask; the next wait
+                # measures idle_seconds from *that* point.
             else:
                 log.info("Call idle after %d asks: ending the call", MAX_ASKS)
                 self._ended = True
@@ -125,7 +151,17 @@ class CallGuard:
         self._ended = True
 
         async def _close() -> None:
-            await asyncio.sleep(FAREWELL_PLAY_SECONDS)
+            # Wait for the farewell to finish playing before hanging up: at
+            # least a fixed grace, and never while audio is still queued.
+            grace_end = time.monotonic() + FAREWELL_PLAY_SECONDS
+            hard_cap = time.monotonic() + FAREWELL_PLAY_SECONDS * 2
+            while True:
+                now = time.monotonic()
+                if now >= grace_end and now >= self._playback_until:
+                    break
+                if now >= hard_cap:
+                    break
+                await asyncio.sleep(0.2)
             self.ended.set()  # let the call loop wind down
             try:
                 await self._hangup()

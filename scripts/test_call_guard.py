@@ -68,5 +68,34 @@ async def main():
     await guard2.stop()
     print("CALLER SPEECH RESET OK")
 
+    # The idle clock must start when her audio finishes, not when generation
+    # ends. Feed a ~2s synthetic response, then time the first ask.
+    qwen3 = FakeQwen()
+    hung3 = asyncio.Event()
+
+    async def hangup3():
+        hung3.set()
+
+    guard3 = CallGuard(qwen3, idle_seconds=1.0, hangup=hangup3)
+    guard3.start()
+    guard3.handle_event({"type": "response.created"})
+    # 2 seconds of 24kHz s16 mono = 96000 bytes -> base64 ~128000 chars.
+    import base64
+
+    chunk = base64.b64encode(b"\0" * 48000).decode()  # 1 second of audio
+    guard3.handle_event({"type": "response.audio.delta", "delta": chunk})
+    guard3.handle_event({"type": "response.audio.delta", "delta": chunk})
+    t_done = asyncio.get_event_loop().time()
+    guard3.handle_event({"type": "response.done"})
+    await asyncio.sleep(0.9)  # 0.9s after generation ended, audio still "playing"
+    early_asks = len([r for r in qwen3.requests if "Can I help" in r])
+    await asyncio.sleep(2.5)  # audio (~2s) + idle window (1s) have now passed
+    late_asks = len([r for r in qwen3.requests if "Can I help" in r])
+    print(f"asks 0.9s after done: {early_asks} | later: {late_asks}")
+    assert early_asks == 0, "asked before the receptionist finished speaking"
+    assert late_asks >= 1, "never asked even after audio + idle window passed"
+    await guard3.stop()
+    print("PLAYBACK-ANCHORED PAUSE OK")
+
 
 asyncio.run(main())
