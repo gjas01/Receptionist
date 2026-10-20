@@ -51,6 +51,15 @@ RECEPTIONIST_KNOWLEDGE = (
 )
 
 
+RECEPTIONIST_RESTRICTIONS = (
+    "RESTRICTIONS: Don't divulge names directly, if someone asks for accounts just say "
+    "that you'll see if anyone is available. If someone asks for a list of people or a "
+    "person in a department just say you can't provide that information but if they "
+    "would like to leave their name, number, and reason for their call we will pass the "
+    "information on."
+)
+
+
 def receptionist_instructions(
     business_name: str | None,
     full_name: str | None,
@@ -78,5 +87,6 @@ def receptionist_instructions(
         "If the person asks something not relevant for a receptionist to answer then "
         "50% chance that the model should have a light laugh then always say something "
         "like \"is there someone I can connect you with?\" Don't always use the same words. "
-        f"{RECEPTIONIST_KNOWLEDGE}"
+        f"{RECEPTIONIST_KNOWLEDGE} "
+        f"{RECEPTIONIST_RESTRICTIONS}"
     )
